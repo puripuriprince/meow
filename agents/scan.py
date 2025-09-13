@@ -194,7 +194,13 @@ class ScanAgent(BasePentestAgent):
                 except Exception:
                     return
 
-            await asyncio.gather(*[ (sem.acquire() and sem.release() and run_one(u)) or run_one(u) for u in urls ])
+            tasks = []
+            for u in urls:
+                async def bounded(u=u):
+                    async with sem:
+                        await run_one(u)
+                tasks.append(bounded())
+            await asyncio.gather(*tasks)
             state["findings"].extend(local_findings)
             state["requests_made"] += made
             return state
@@ -217,7 +223,13 @@ class ScanAgent(BasePentestAgent):
                 except Exception:
                     return
 
-            await asyncio.gather(*[ (sem.acquire() and sem.release() and run_one(u)) or run_one(u) for u in urls ])
+            tasks = []
+            for u in urls:
+                async def bounded(u=u):
+                    async with sem:
+                        await run_one(u)
+                tasks.append(bounded())
+            await asyncio.gather(*tasks)
             state["findings"].extend(local_findings)
             state["requests_made"] += made
             return state

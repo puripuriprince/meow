@@ -12,6 +12,14 @@ from pentest_schemas import (
 )
 from agents.base import BasePentestAgent, AgentContext
 
+try:
+    from langgraph.graph import StateGraph, END
+    from langgraph.graph.state import CompiledStateGraph
+except Exception:  # pragma: no cover
+    StateGraph = None  # type: ignore
+    END = None  # type: ignore
+    CompiledStateGraph = None  # type: ignore
+
 
 def _key(f: Finding) -> Tuple[str, str, str]:
     return (f.category, f.url or "", f.param or "")
@@ -36,6 +44,46 @@ class AnalysisAgent(BasePentestAgent):
         result.findings.extend(scored)
         report = self._render_markdown(scored)
         result.logs.append(report)
+
+    def _build_graph(self) -> Optional[CompiledStateGraph]:
+        if StateGraph is None:
+            return None
+
+        g = StateGraph(dict)
+
+        async def collect(state: Dict[str, Any]) -> Dict[str, Any]:
+            task: PentestTask = state["task"]
+            state["input_findings"] = task.hints.get("findings", [])
+            return state
+
+        async def dedupe(state: Dict[str, Any]) -> Dict[str, Any]:
+            merged = self._dedupe(state.get("input_findings", []))
+            state["merged"] = merged
+            return state
+
+        async def score(state: Dict[str, Any]) -> Dict[str, Any]:
+            scored = self._score(state.get("merged", []))
+            state["scored"] = scored
+            return state
+
+        async def render(state: Dict[str, Any]) -> Dict[str, Any]:
+            result: AgentResult = state["result"]
+            findings = state.get("scored", [])
+            result.findings.extend(findings)
+            report = self._render_markdown(findings)
+            result.logs.append(report)
+            return state
+
+        g.add_node("collect", collect)
+        g.add_node("dedupe", dedupe)
+        g.add_node("score", score)
+        g.add_node("render", render)
+        g.set_entry_point("collect")
+        g.add_edge("collect", "dedupe")
+        g.add_edge("dedupe", "score")
+        g.add_edge("score", "render")
+        g.add_edge("render", END)
+        return g.compile()
 
     def _dedupe(self, findings: List[Finding]) -> List[Finding]:
         buckets: Dict[Tuple[str, str, str], List[Finding]] = defaultdict(list)
@@ -78,4 +126,3 @@ class AnalysisAgent(BasePentestAgent):
 
 
 __all__ = ["AnalysisAgent"]
-
