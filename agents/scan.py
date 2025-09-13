@@ -21,6 +21,14 @@ from pentest_schemas import (
 )
 from agents.base import BasePentestAgent, AgentContext
 
+try:
+    from langgraph.graph import StateGraph, END
+    from langgraph.graph.state import CompiledStateGraph
+except Exception:  # pragma: no cover
+    StateGraph = None  # type: ignore
+    END = None  # type: ignore
+    CompiledStateGraph = None  # type: ignore
+
 
 SQL_ERROR_PATTERNS = [
     r"you have an error in your sql syntax;",
@@ -151,6 +159,119 @@ class ScanAgent(BasePentestAgent):
         result.metrics.requests_made = (result.metrics.requests_made or 0) + requests_made
         result.metrics.signals_found = len(result.findings)
 
+    def _build_graph(self) -> Optional[CompiledStateGraph]:
+        if StateGraph is None:
+            return None
+
+        g = StateGraph(dict)
+
+        async def prepare(state: Dict[str, Any]) -> Dict[str, Any]:
+            task: PentestTask = state["task"]
+            state.update({
+                "urls": task.urls or [],
+                "timeout": float(task.params.get("timeout", 10)),
+                "concurrency": int(task.params.get("concurrency", 10)),
+                "findings": [],
+                "requests_made": 0,
+            })
+            return state
+
+        async def probe_xss(state: Dict[str, Any]) -> Dict[str, Any]:
+            import httpx  # local import to avoid unused at module level
+            sem = asyncio.Semaphore(state["concurrency"])
+            urls: List[str] = state["urls"]
+            made = 0
+            local_findings: List[Finding] = []
+
+            async def run_one(u: str):
+                nonlocal made
+                try:
+                    async with httpx.AsyncClient(follow_redirects=True, timeout=state["timeout"]) as client:
+                        f, c = await self._probe_xss(client, u)
+                        made += c
+                        if f:
+                            local_findings.append(f)
+                except Exception:
+                    return
+
+            await asyncio.gather(*[ (sem.acquire() and sem.release() and run_one(u)) or run_one(u) for u in urls ])
+            state["findings"].extend(local_findings)
+            state["requests_made"] += made
+            return state
+
+        async def probe_sqli(state: Dict[str, Any]) -> Dict[str, Any]:
+            import httpx
+            sem = asyncio.Semaphore(state["concurrency"])
+            urls: List[str] = state["urls"]
+            made = 0
+            local_findings: List[Finding] = []
+
+            async def run_one(u: str):
+                nonlocal made
+                try:
+                    async with httpx.AsyncClient(follow_redirects=True, timeout=state["timeout"]) as client:
+                        f, c = await self._probe_sqli(client, u)
+                        made += c
+                        if f:
+                            local_findings.append(f)
+                except Exception:
+                    return
+
+            await asyncio.gather(*[ (sem.acquire() and sem.release() and run_one(u)) or run_one(u) for u in urls ])
+            state["findings"].extend(local_findings)
+            state["requests_made"] += made
+            return state
+
+        async def sqlmap_detect(state: Dict[str, Any]) -> Dict[str, Any]:
+            task: PentestTask = state["task"]
+            result: AgentResult = state["result"]
+            ctx: AgentContext = state["ctx"]
+            urls: List[str] = state["urls"]
+            findings: List[Finding] = state["findings"]
+            sqlmap = ctx.tools.get("sqlmap")
+            if sqlmap is not None and await sqlmap.available():
+                for u in urls[:5]:
+                    res = await sqlmap.run(args=[
+                        "-u", u, "--batch", "--level", "1", "--risk", "1", "--smart", "--flush-session",
+                    ], timeout=float(task.params.get("sqlmap_timeout", 90)))
+                    result.logs.append(f"[sqlmap] cmd={res.get('cmd')} exit={res.get('exit_code')} timed_out={res.get('timed_out')}")
+                    if res.get("stdout"):
+                        parsed = self._parse_sqlmap_output(u, res["stdout"])
+                        if parsed:
+                            findings.append(parsed)
+                            result.derived_tasks.append(
+                                PentestTask(
+                                    id=_gen_id(),
+                                    type=TaskType.EXPLOIT,
+                                    target=task.target,
+                                    urls=[u],
+                                    hints={"from": "scan", "tool": "sqlmap"},
+                                    priority=task.priority,
+                                )
+                            )
+                    result.metrics.tool_invocations["sqlmap"] = result.metrics.tool_invocations.get("sqlmap", 0) + 1
+            return state
+
+        async def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
+            result: AgentResult = state["result"]
+            result.findings.extend(state.get("findings", []))
+            result.metrics.requests_made = (result.metrics.requests_made or 0) + state.get("requests_made", 0)
+            result.metrics.signals_found = len(result.findings)
+            return state
+
+        g.add_node("prepare", prepare)
+        g.add_node("probe_xss", probe_xss)
+        g.add_node("probe_sqli", probe_sqli)
+        g.add_node("sqlmap_detect", sqlmap_detect)
+        g.add_node("finalize", finalize)
+        g.set_entry_point("prepare")
+        g.add_edge("prepare", "probe_xss")
+        g.add_edge("probe_xss", "probe_sqli")
+        g.add_edge("probe_sqli", "sqlmap_detect")
+        g.add_edge("sqlmap_detect", "finalize")
+        g.add_edge("finalize", END)
+        return g.compile()
+
     async def _probe_xss(self, client: httpx.AsyncClient, url: str) -> Tuple[Optional[Finding], int]:
         reqs = 0
         parsed = urlparse(url)
@@ -251,4 +372,3 @@ class ScanAgent(BasePentestAgent):
 
 
 __all__ = ["ScanAgent"]
-

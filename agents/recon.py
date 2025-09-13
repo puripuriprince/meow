@@ -11,6 +11,14 @@ import httpx
 from pentest_schemas import PentestTask, AgentResult, TaskType
 from agents.base import BasePentestAgent, AgentContext
 
+try:
+    from langgraph.graph import StateGraph, END
+    from langgraph.graph.state import CompiledStateGraph
+except Exception:  # pragma: no cover
+    StateGraph = None  # type: ignore
+    END = None  # type: ignore
+    CompiledStateGraph = None  # type: ignore
+
 
 HREF_RE = re.compile(r"href=[\"\']([^\"\'#]+)")
 SRC_RE = re.compile(r"src=[\"\']([^\"\'#]+)")
@@ -96,6 +104,104 @@ class ReconAgent(BasePentestAgent):
         result.derived_tasks.extend(derived)
         result.metrics.requests_made = requests_made
 
+    def _build_graph(self) -> Optional[CompiledStateGraph]:
+        if StateGraph is None:
+            return None
+
+        g = StateGraph(dict)
+
+        async def prepare(state: Dict[str, Any]) -> Dict[str, Any]:
+            task: PentestTask = state["task"]
+            base_url = task.target.base_url.rstrip("/")
+            allowed_hosts = task.target.allowed_hosts or [urlparse(base_url).netloc]
+            state.update({
+                "base_url": base_url,
+                "allowed_hosts": allowed_hosts,
+                "crawl_depth": int(task.params.get("crawl_depth", 2)),
+                "max_urls": int(task.params.get("max_urls", 200)),
+                "concurrency": int(task.params.get("concurrency", 10)),
+            })
+            return state
+
+        async def crawl(state: Dict[str, Any]) -> Dict[str, Any]:
+            result: AgentResult = state["result"]
+            urls, requests_made = await self._crawl(
+                state["base_url"], state["allowed_hosts"], state["crawl_depth"], state["max_urls"], state["concurrency"]
+            )
+            self.log(result, f"Crawled {len(urls)} URLs (requests={requests_made})")
+            state.update({"urls": urls, "requests_made": requests_made})
+            return state
+
+        async def fingerprint(state: Dict[str, Any]) -> Dict[str, Any]:
+            result: AgentResult = state["result"]
+            headers_info = await self._fingerprint(state["base_url"])
+            if headers_info:
+                result.logs.append(f"[fingerprint] {headers_info}")
+            state["headers_info"] = headers_info
+            return state
+
+        async def ffuf_step(state: Dict[str, Any]) -> Dict[str, Any]:
+            task: PentestTask = state["task"]
+            result: AgentResult = state["result"]
+            ctx: AgentContext = state["ctx"]
+            ffuf = ctx.tools.get("ffuf")
+            base_url: str = state["base_url"]
+            if ffuf is not None and await ffuf.available():
+                wordlist = task.params.get("wordlist")
+                ffuf_args = [
+                    "-u", f"{base_url}/FUZZ",
+                    "-mc", "200,204,301,302,307,401,403",
+                    "-of", "json", "-o", "-",
+                ]
+                if wordlist:
+                    ffuf_args += ["-w", wordlist]
+                else:
+                    ffuf_args += ["-w", "-"]
+                payload = ("\n".join(["admin", "login", "api", "config", ".git", "backup"]).encode())
+                ff = await ffuf.run(args=ffuf_args, timeout=float(task.params.get("ffuf_timeout", 60)), input_bytes=payload if not wordlist else None)
+                result.logs.append(f"[ffuf] cmd={ff.get('cmd')} exit={ff.get('exit_code')} timed_out={ff.get('timed_out')}")
+                if ff.get("stdout"):
+                    snippet = ff["stdout"][:1000]
+                    result.logs.append(f"[ffuf:stdout]\n{snippet}")
+            return state
+
+        async def derive(state: Dict[str, Any]) -> Dict[str, Any]:
+            task: PentestTask = state["task"]
+            result: AgentResult = state["result"]
+            allowed_hosts: List[str] = state["allowed_hosts"]
+            headers_info: Dict[str, str] = state.get("headers_info", {})
+            urls: Set[str] = state.get("urls", set())
+            derived: List[PentestTask] = []
+            for u in sorted(urls):
+                if not _same_host(u, allowed_hosts):
+                    continue
+                derived.append(
+                    PentestTask(
+                        id=_gen_task_id(),
+                        type=TaskType.SCAN,
+                        target=task.target,
+                        urls=[u],
+                        priority=task.priority,
+                        hints={"from": "recon", "fingerprint": headers_info},
+                    )
+                )
+            result.derived_tasks.extend(derived)
+            result.metrics.requests_made = state.get("requests_made", 0)
+            return state
+
+        g.add_node("prepare", prepare)
+        g.add_node("crawl", crawl)
+        g.add_node("fingerprint", fingerprint)
+        g.add_node("ffuf", ffuf_step)
+        g.add_node("derive", derive)
+        g.set_entry_point("prepare")
+        g.add_edge("prepare", "crawl")
+        g.add_edge("crawl", "fingerprint")
+        g.add_edge("fingerprint", "ffuf")
+        g.add_edge("ffuf", "derive")
+        g.add_edge("derive", END)
+        return g.compile()
+
     async def _fingerprint(self, url: str) -> Dict[str, str]:
         info: Dict[str, str] = {}
         try:
@@ -173,4 +279,3 @@ class ReconAgent(BasePentestAgent):
 
 
 __all__ = ["ReconAgent"]
-
