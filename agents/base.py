@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional, Protocol
 import time
 
 try:
-    # LangGraph is used to structure agent internals as a small state machine.
     from langgraph.graph import StateGraph, END
     from langgraph.graph.state import CompiledStateGraph
 except Exception:  # pragma: no cover - allow runtime without langgraph installed
