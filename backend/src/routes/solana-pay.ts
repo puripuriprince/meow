@@ -38,7 +38,7 @@ router.post('/create-payment', async (req, res) => {
   }
 });
 
-// Create token payment request
+// Create token payment request (requires authentication)
 router.post('/create-token-payment', async (req, res) => {
   try {
     const { tokenMint, amount, decimals, label, message } = req.body;
@@ -78,7 +78,7 @@ router.post('/create-token-payment', async (req, res) => {
   }
 });
 
-// Verify payment
+// Verify payment (requires authentication)
 router.post('/verify-payment', async (req, res) => {
   try {
     const { signature, expectedAmount, reference } = req.body;
@@ -106,7 +106,7 @@ router.post('/verify-payment', async (req, res) => {
   }
 });
 
-// Get transaction status
+// Get transaction status (requires authentication)
 router.get('/transaction-status/:signature', async (req, res) => {
   try {
     const { signature } = req.params;
@@ -134,10 +134,9 @@ router.get('/transaction-status/:signature', async (req, res) => {
   }
 });
 
-// Health check for Solana connection
+// Health check for Solana connection (public)
 router.get('/health', async (req, res) => {
   try {
-    // You could add a simple connection test here
     res.status(200).json({
       message: 'Solana Pay service is running',
       timestamp: new Date().toISOString()

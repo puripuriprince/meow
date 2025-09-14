@@ -1,6 +1,6 @@
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
-export default function FAQSection(): JSX.Element {
+export default function FAQSection() {
   return (
     <section className="bg-background py-20">
       <div className="container max-w-5xl mx-auto px-6">
@@ -16,7 +16,7 @@ export default function FAQSection(): JSX.Element {
               Why open-core?
             </AccordionTrigger>
             <AccordionContent className="text-body-large text-muted-foreground pb-6">
-              Trust. Community. Teams need to audit and extend the local engine (CLI, orchestrator, guardrails, adapters). We monetize the transformational bits—plan/patch/resoning—so we can reinvest in R&D while keeping the core transparent.
+              Trust. Community. Teams need to audit and extend the local engine (CLI, orchestrator, guardrails, adapters). We monetize the transformational bits, plan/patch/resoning, so we can reinvest in R&D while keeping the core transparent.
             </AccordionContent>
           </AccordionItem>
 
@@ -43,7 +43,7 @@ export default function FAQSection(): JSX.Element {
               What data do you collect?
             </AccordionTrigger>
             <AccordionContent className="text-body-large text-muted-foreground pb-6">
-              ZDR e2e encrypted with blind computation based on pay tier, if not, the data will be used to improve the product.
+              ZDR E2E encrypted with blind computation based on pay tier. For free users, the data will be used to improve the product.
             </AccordionContent>
           </AccordionItem>
         </Accordion>

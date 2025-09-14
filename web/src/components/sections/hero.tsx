@@ -19,7 +19,7 @@ const HeroSection = () => {
             />
             <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
               <h1 className="text-3xl md:text-5xl font-semibold leading-tight tracking-tighter text-primary">
-                meowBot, the hacking agent in your terminal.
+                EvoSec, the hacking agent in your terminal.
               </h1>
               <p className="mt-3 text-base md:text-lg text-primary/80">
                 Penetration testing at terminal velocity.

@@ -11,8 +11,8 @@ const AnalysisFeatures = () => {
             Your terminal-first AI cybersecurity expert
           </h2>
           <p className="text-body-large">
-            Pentest without leaving the CLI. meowBot searches massive attack surfaces,
-            explains issues, drafts fixes, and automates debug loops—at thought speed.
+            Pentest without leaving the CLI. EvoSec searches massive attack surfaces,
+            explains issues, drafts fixes, and automates debug loops.
           </p>
           <p className="text-body-large">
             Your tools. Your workflow. Zero context switching.
@@ -24,9 +24,9 @@ const AnalysisFeatures = () => {
             </p>
             <div className="inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm">
               <code className="whitespace-nowrap font-mono text-[15px] text-primary">
-                npm install -g meowBot
+                npm install -g EvoSec
               </code>
-              <CopyButton text="npm install -g meowBot" />
+              <CopyButton text="npm install -g EvoSec" />
             </div>
           </div>
         </div>
@@ -42,12 +42,12 @@ const AnalysisFeatures = () => {
 
           <pre className="overflow-auto rounded-b-2xl p-6 font-mono text-[13px] leading-6 text-white">
 {`
- █████╗ ███╗   ██╗██████╗      ██╗██╗
-██╔══██╗████╗  ██║██╔══██╗     ██║██║
-███████║██╔██╗ ██║██║  ██║     ██║██║
-██╔══██║██║╚██╗██║██║  ██║██   ██║██║
-██║  ██║██║ ╚████║██████╔╝╚█████╔╝██║
-╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝  ╚════╝ ╚═╝
+███████╗██╗   ██╗ ██████╗ ███████╗███████╗ ██████╗
+██╔════╝██║   ██║██╔═══██╗██╔════╝██╔════╝██╔════╝
+█████╗  ██║   ██║██║   ██║███████╗█████╗  ██║     
+██╔══╝  ╚██╗ ██╔╝██║   ██║╚════██║██╔══╝  ██║     
+███████╗ ╚████╔╝ ╚██████╔╝███████║███████╗╚██████╗
+╚══════╝  ╚═══╝   ╚═════╝ ╚══════╝╚══════╝ ╚═════╝
 
 
 

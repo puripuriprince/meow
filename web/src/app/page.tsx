@@ -7,10 +7,13 @@ import TrustedBy from '@/components/sections/trusted-by';
 import Examples from '@/components/sections/examples';
 import Testimonials from '@/components/sections/testimonials';
 import FAQSection from '@/components/sections/faq';
+import DemoSection from '@/components/sections/demo-section';
+import Auth0CallbackDetector from '@/components/auth/Auth0CallbackDetector';
 
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-white">
+      <Auth0CallbackDetector />
       <Navigation />
       
       <div className="flex flex-col">
@@ -23,6 +26,9 @@ export default function HomePage() {
         </div>
         
         <TrustedBy />
+        
+        {/* Demo Section */}
+        <DemoSection />
         
         {/* Full-viewport horizontally scrollable examples */}
         <Examples />

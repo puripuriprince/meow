@@ -4,7 +4,7 @@ const logos: { name: string; className?: string }[] = [
   { name: "Jump Trading" },
   { name: "Revamp", className: "text-[#4a90e2] font-semibold" },
   { name: "Meta" },
-  { name: "JaneStreet" },
+  { name: "Jane Street" },
   { name: "Mosaic" },
   { name: "Amazon" },
 ];
