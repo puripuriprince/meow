@@ -1,0 +1,31 @@
+How we built it
+
+Claude code for pentesting orchestrator with agents. Npm app built in typescript for the terminal UX. Rest is in python using langraph.
+Cua agent with ctx tools and prompt evolution built in python based on alpha evolve, built in python. (ctx + evolution explanation)
+
+subagents + Tools?
+backend?
+solana pay
+
+
+
+
+
+Challenges we ran into
+Getting the terminal UX to work with the local backend, the orchestrator flow, the subagents, the CUA, the false positive rate being lower than 1%.
+
+
+
+Accomplishments that we're proud of
+
+Breaking a bunch of webapps from founders around waterloo, SOTA on the CUA benchmark, hit rate%, prompt evolution for sota on multiple tasks.
+
+
+
+What we learned
+
+Solana pay, CUA, RL on openpie, Auth0,  inference on cerebras, multi-agent orchestration, warp and how to make a better agent.
+
+
+
+What's next for EvoSec
