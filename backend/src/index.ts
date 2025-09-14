@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import solanaPayRoutes from './routes/solana-pay';
+import chatRoutes from './routes/chat';
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +21,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/solana-pay', solanaPayRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
