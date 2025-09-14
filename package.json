@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "express": "^5.1.0",
-    "express-openid-connect": "^2.19.2"
+    "express-openid-connect": "^2.19.2",
+    "meowbot": "^1.1.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
