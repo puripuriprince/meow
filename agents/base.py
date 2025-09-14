@@ -4,6 +4,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Protocol
 import time
+import sys
+import os
+
+# Add parent directory to path to import from tools
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from langgraph.graph import StateGraph, END
@@ -18,6 +23,9 @@ from pentest_schemas import (
     AgentResult,
     AgentMetrics,
 )
+
+# Import ToolAdapter from tools
+from tools.adapters.base import ToolAdapter
 
 
 @dataclass
