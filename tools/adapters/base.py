@@ -1,31 +1,54 @@
-# base adapter interface, like:
-# class ToolAdapter:
-#     async def available(self) -> bool
-#     async def run(self, **kwargs) -> ToolResult
-# Where ToolResult is a class that holds:
-# 
-# stdout (text / JSON),
-# 
-# stderr,
-# 
-# exit_code,
-# 
-# possibly parsed data (if JSON or other parseable format),
-# 
-# maybe a flag for timeout or failure.
-# 
-# The other adapters should implement this interface.
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Optional, Any
+import json
 
 
-# Sketch code below - something I pulled off of the internet which can help
-from __future__ import annotations
+@dataclass
+class ToolResult:
+    """Result from running a tool adapter."""
+    cmd: list[str] | None = None
+    stdout: str
+    stderr: str
+    exit_code: int
+    timed_out: bool = False
+    duration_ms: Optional[float] = None
+    parsed_data: Optional[Any] = None
+    
+    def parse_json(self) -> Optional[Any]:
+        """Try to parse stdout as JSON and cache in parsed_data."""
+        if self.parsed_data is None and self.stdout.strip():
+            try:
+                self.parsed_data = json.loads(self.stdout)
+            except json.JSONDecodeError:
+                pass
+        return self.parsed_data
+
+
+class ToolAdapter(ABC):
+    """Base interface for tool adapters."""
+    
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Tool name identifier."""
+        pass
+    
+    @abstractmethod
+    async def available(self) -> bool:
+        """Check if tool is available on the system."""
+        pass
+    
+    @abstractmethod
+    async def run(self, cmd: list[str], **kwargs) -> ToolResult:
+        """Run the tool with given parameters."""
+        pass
 
 import asyncio
 import os
-import shlex
 import shutil
 import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, List
 
 
 def which(cmd: str) -> Optional[str]:
@@ -40,11 +63,8 @@ async def run_command(
     input_bytes: Optional[bytes] = None,
     cwd: Optional[str] = None,
     env: Optional[Dict[str, str]] = None,
-) -> Dict[str, Any]:
-    """Run a CLI command asynchronously with timeout and capture output.
-
-    Returns a dict with: exit_code, stdout, stderr, timed_out, duration_ms, args.
-    """
+) -> ToolResult:
+    """Run a CLI command asynchronously with timeout and capture output."""
     start = time.perf_counter()
     proc = await asyncio.create_subprocess_exec(
         *args,
@@ -69,24 +89,15 @@ async def run_command(
     stdout_text = stdout.decode(errors="replace") if stdout is not None else ""
     stderr_text = stderr.decode(errors="replace") if stderr is not None else ""
 
-    return {
-        "args": args,
-        "exit_code": proc.returncode,
-        "stdout": stdout_text,
-        "stderr": stderr_text,
-        "timed_out": timed_out,
-        "duration_ms": duration_ms,
-    }
+    return ToolResult(
+        cmd=args,
+        stdout=stdout_text,
+        stderr=stderr_text,
+        exit_code=proc.returncode or 0,
+        timed_out=timed_out,
+        duration_ms=duration_ms,
+    )
 
 
-def format_cmd(args: List[str]) -> str:
-    """Pretty-print a command for logs (approximate quoting)."""
-    # On Windows, shlex.join may not reflect PowerShell quoting; this is best-effort.
-    try:
-        return shlex.join(args)
-    except Exception:
-        return " ".join(args)
-
-
-__all__ = ["which", "run_command", "format_cmd"]
+__all__ = ["ToolAdapter", "ToolResult", "which", "run_command"]
 
