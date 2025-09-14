@@ -1,0 +1,23 @@
+{
+  "name": "meow-fullstack",
+  "version": "1.0.0",
+  "description": "Full-stack Auth0 and Solana Pay application",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd web && npm run dev",
+    "install-all": "npm install && cd backend && npm install && cd ../web && npm install",
+    "build": "cd backend && npm run build && cd ../web && npm run build",
+    "start": "concurrently \"npm run backend:start\" \"npm run frontend:start\"",
+    "backend:start": "cd backend && npm start",
+    "frontend:start": "cd web && npm start"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "express-openid-connect": "^2.19.2",
+    "meowbot": "^1.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
