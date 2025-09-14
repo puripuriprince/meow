@@ -21,22 +21,6 @@ from pentest_schemas import (
 )
 
 
-class ToolAdapter(Protocol):
-    """Interface for tool adapters used by agents.
-
-    Concrete implementations will wrap a CLI or API (e.g., ffuf, ZAP, sqlmap)
-    and expose a uniform async `run` method.
-    """
-
-    name: str
-
-    async def available(self) -> bool:
-        ...
-
-    async def run(self, **kwargs) -> Dict[str, Any]:
-        ...
-
-
 @dataclass
 class AgentContext:
     """Lightweight runtime context for an agent execution."""
